@@ -5,24 +5,13 @@
 set -e -x -o pipefail
 
 
-#
-# This app is only a wrapper. The actual GATK3 software must be provided
-# by the user. It is expected to be found in the parent project.
-#
-# Locate and download the GATK jar file.
-#
-#mark-section "locating GATK jar file"
-#download-gatk-jar.sh
 
 #
 # Fetch inputs
 #
 #mark-section "downloading inputs"
-#dx-download-all-inputs
 
 dx-download-all-inputs --parallel
-
-mv ~/in/gatk_jar_file/* ~/GenomeAnalysisTK.jar
 
 # Show all the java versions installed on this worker
 # Show the java version the worker is using
@@ -34,7 +23,6 @@ echo $(java -version)
 #
 update-alternatives --set java /usr/lib/jvm/java-7-openjdk-amd64/jre/bin/java
 java -jar GenomeAnalysisTK.jar -version || (update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/jre/bin/java && java -jar GenomeAnalysisTK.jar -version)
-
 
 
 #
@@ -79,18 +67,6 @@ APPDATA=project-B6JG85Z2J35vb6Z7pQ9Q02j8
 dx cat "$APPDATA:/misc/gatk_resource_archives/${subgenome}.fasta-index.tar.gz" | tar zxf -
 
 
-# If WES assigne vendor exome bedfile to region_opts
-if echo "$sorted_bam_path" | grep -q 'WES\|Pan493' ; then
-    echo "WES Sample - specifying BED file to use for variant calling by HaplotypeCaller"
-    region_opts=("-L" "/home/dnanexus/in/vendor_exome_bedfile/$vendor_exome_bedfile_prefix.bed")
-        if [[ "$padding" != "0" ]]
-            then
-                region_opts+=("-ip" "$padding")
-        fi
-else 
-    echo "Custom panel Sample no BED file will be passed to HaplotypeCaller"
-fi
-
 #echo $region_opts
 
 # Fetch GATK resources (these have been prepared in archives)
@@ -103,6 +79,7 @@ dbsnp="dbsnp_137.${genome}.vcf.gz"
 #
 # Run Picard MarkDuplicates
 #
+echo $skip_markduplicates
 if [[ "$skip_markduplicates" != "true" ]]
 then
   #mark-section "marking duplicates"
@@ -111,6 +88,7 @@ then
   realign_input="deduplicated.bam"
 else
   #mark-section "indexing input mappings"
+  echo "not marking duplicates"
   samtools index "$sorted_bam_path"
   realign_input="$sorted_bam_path"
 fi
@@ -131,49 +109,17 @@ $java -jar GenomeAnalysisTK.jar -nct `nproc` -T BaseRecalibrator -R genome.fa -I
 $java -jar GenomeAnalysisTK.jar -nct `nproc` -T PrintReads -R genome.fa -I realigned.bam -BQSR recal.grp -o recal.bam $extra_pr_options
 rm -f realigned.bam
 
-#
-# Run GATK HaplotypeCaller
-#
-#mark-section "calling variants"
-if [[ "$output_format" == "vcf" ]]; then
-  $java -jar GenomeAnalysisTK.jar -nct `nproc` -T HaplotypeCaller -R genome.fa -o output.vcf.gz --dbsnp $dbsnp -I recal.bam "${region_opts[@]}" $extra_hc_options
-  if [[ ! -e output.vcf.gz.tbi ]]; then
-    #mark-section "indexing vcf"
-    tabix -p vcf output.vcf.gz
-  fi
-else
-  $java -jar GenomeAnalysisTK.jar -nct `nproc` -T HaplotypeCaller -R genome.fa -o output.g.vcf.gz --dbsnp $dbsnp -I recal.bam -ERC GVCF -variant_index_type LINEAR -variant_index_parameter 128000 "${region_opts[@]}" $extra_hc_options
-  if [[ ! -e output.g.vcf.gz.tbi ]]; then
-    #mark-section "indexing gvcf"
-    tabix -p vcf output.g.vcf.gz
-  fi
-  if [[ "$output_format" == "both" ]]; then
-    $java -jar GenomeAnalysisTK.jar -nt `nproc` --dbsnp $dbsnp -T GenotypeGVCFs -R genome.fa -o output.vcf.gz -V output.g.vcf.gz $extra_gg_options
-    if [[ ! -e output.vcf.gz.tbi ]]; then
-      #mark-section "indexing vcf"
-      tabix -p vcf output.vcf.gz
-    fi
-  fi
-fi
 
 
 #mark-section "uploading results"
 mkdir -p ~/out/bam/output/ ~/out/bai/output/ ~/out/outputmetrics/QC/
 mv recal.bam ~/out/bam/output/"$sorted_bam_prefix".refined.bam
 mv recal.bai ~/out/bai/output/"$sorted_bam_prefix".refined.bam.bai
+if [[ "$skip_markduplicates" != "true" ]]
+then
 mv output.metrics ~/out/outputmetrics/QC/"$sorted_bam_prefix".output.metrics
-
-if [[ "$output_format" != "gvcf" ]]; then
-  mkdir -p ~/out/vcf/output/ ~/out/vcf_tbi/output/
-  mv output.vcf.gz ~/out/vcf/output/"$sorted_bam_prefix".vcf.gz
-  mv output.vcf.gz.tbi ~/out/vcf_tbi/output/"$sorted_bam_prefix".vcf.gz.tbi
 fi
 
-if [[ "$output_format" != "vcf" ]]; then
-  mkdir -p ~/out/gvcf/output/ ~/out/gvcf_tbi/output/
-  mv output.g.vcf.gz ~/out/gvcf/output/"$sorted_bam_prefix".g.vcf.gz
-  mv output.g.vcf.gz.tbi ~/out/gvcf_tbi/output/"$sorted_bam_prefix".g.vcf.gz.tbi
-fi
 
 #
 # Upload results
