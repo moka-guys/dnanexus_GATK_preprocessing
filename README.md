@@ -27,3 +27,6 @@ This app outputs the refined (deduplicated, realigned, and recalibrated) mapping
 
 2. Mark Duplicates Output Metrics 
 The Mark duplicates output metrics file which is used to produce run-wide QC.
+
+## Custom modifications
+* The app was modified by Viapath Genome Informatics
