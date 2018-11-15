@@ -37,6 +37,9 @@ java="java -Xmx$(<.mem_in_mb.txt)m"
 #
 #mark-section "detecting reference genome"
 samtools view -H "$sorted_bam_path" | grep ^@SQ | cut -f1-3 | md5sum | cut -c1-32 >.genome-fingerprint.txt
+# parse the BAM header to look for all the reference sequences.
+# use cut -f1-3 to reformat and calculate a checksum from this info. use cut -c1-32 to reformat and save this checksum into genome-fingerprint.txt
+# this info is used to determine which reference genome was used for alignment and so the correct reference files can be downloaded below.
 case "$(<.genome-fingerprint.txt)" in
   9220d59b0d7a55a43b22cad4a87f6797)
     genome=b37
