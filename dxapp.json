@@ -1,0 +1,119 @@
+{
+  "name": "gatk3_preprocessing_v1.0",
+  "title": "GATK3 Preprocessing v1.0",
+  "summary": "v1.0 .",
+  "properties": {
+    "github release": "v1.0"
+  },
+  "dxapi": "1.0.0",
+  "inputSpec": [
+    {
+      "name": "sorted_bam",
+      "label": "Sorted mappings",
+      "help": "A coordinate-sorted BAM file with the human mappings to be processed through the pipeline.",
+      "class": "file",
+      "patterns": ["*.bam"]
+    },
+    {
+      "name": "skip_markduplicates",
+      "label": "Skip the duplicate marking step?",
+      "help": "If selected, the duplicate marking step will be skipped. This is appropriate if the input BAM file contains already-marked duplicates by some other method, or if the protocol requires skipping this step (typical for HaloPlex).",
+      "class": "boolean",
+      "default": true,
+      "group": "Common"
+    },
+    {
+      "name": "extra_md_options",
+      "label": "Extra command line options (for Picard MarkDuplicates)",
+      "help": "Extra command line options that will be supplied directly to the Picard MarkDuplicates execution. Example: REMOVE_DUPLICATES=true",
+      "class": "string",
+      "optional": true,
+      "group": "Advanced"
+    },
+    {
+      "name": "extra_rtc_options",
+      "label": "Extra command line options (for RealignerTargetCreator)",
+      "help": "Extra command line options that will be supplied directly to the GATK RealignerTargetCreator execution. Example: -minReads 6",
+      "class": "string",
+      "optional": true,
+      "group": "Advanced"
+    },
+    {
+      "name": "extra_ir_options",
+      "label": "Extra command line options (for IndelRealigner)",
+      "help": "Extra command line options that will be supplied directly to the GATK IndelRealigner execution. Example: -LOD 0.4",
+      "class": "string",
+      "optional": true,
+      "group": "Advanced"
+    },
+    {
+      "name": "extra_br_options",
+      "label": "Extra command line options (for BaseRecalibrator)",
+      "help": "Extra command line options that will be supplied directly to the GATK BaseRecalibrator execution. Example: -maxCycle 100",
+      "class": "string",
+      "optional": true,
+      "group": "Advanced"
+    },
+    {
+      "name": "extra_pr_options",
+      "label": "Extra command line options (for PrintReads)",
+      "help": "Extra command line options that will be supplied directly to the GATK PrintReads execution. Example: --downsample_coverage 500",
+      "class": "string",
+      "optional": true,
+      "group": "Advanced"
+    }
+  ],
+  "outputSpec": [
+    {
+      "name": "bam",
+      "label": "Refined mappings (BAM)",
+      "help": "A coordinate-sorted BAM file with the refined mappings.",
+      "class": "file",
+      "patterns": ["*.bam"]
+    },
+    {
+      "name": "outputmetrics",
+      "label": "Mark Duplicates Output Metrics",
+      "help": "The outputmetrics  files from picard mark duplicates.",
+      "class": "file",
+      "optional": true
+    },
+    {
+      "name": "bai",
+      "label": "Refined mappings index",
+      "help": "The associated BAM index file.",
+      "class": "file",
+      "patterns": ["*.bai"]
+    }
+  ],
+  "runSpec": {
+    "execDepends": [
+      {
+        "name": "openjdk-7-jre-headless"
+      },
+      {
+        "name": "openjdk-8-jre-headless"
+      }
+    ],
+    "file": "src/code.sh",
+    "release": "14.04",
+    "interpreter": "bash",
+    "distribution": "Ubuntu"
+  },
+  "access": {
+    "project": "VIEW"
+  },
+  "details": {
+    "whatsNew": ""
+  },
+  "ignoreReuse": false,
+  "regionalOptions": {
+    "aws:us-east-1": {
+      "systemRequirements": {
+        "main": {
+          "instanceType": "mem1_ssd1_x8"
+        }
+      }
+    }
+  }
+}
