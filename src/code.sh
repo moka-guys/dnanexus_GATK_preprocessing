@@ -7,7 +7,7 @@ set -e -x -o pipefail
 # check not all steps are being skipped otherwise we get a 'refined.bam' that hasn't had any preprocessing.
 if [[ "$skip_markduplicates" == "true" ]] && [[ "$skip_BQSR" == "true" ]] && [[ "$skip_indelrealignment" == "true" ]]
 then
-exit
+  exit
 fi
 
 #
@@ -94,7 +94,7 @@ then
   $java -jar picard.jar MarkDuplicates I="$sorted_bam_path" O=deduplicated.bam M=output.metrics CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT $extra_md_options
   rm -f "$sorted_bam_path"
   realign_input="deduplicated.bam"
-# if mark suplicates is skipped we need to set the inputs for the next tool to the files input to mark duplicates. This also requires an indexed BAM so need to create this index.
+# if mark duplicates is skipped we need to set the inputs for the next tool to the files input to mark duplicates. This also requires an indexed BAM so need to create this index.
 else
   mark-section "mark duplicates skipped"
   samtools index "$sorted_bam_path"
@@ -145,8 +145,8 @@ mv $recal_bai ~/out/bai/output/"$sorted_bam_prefix".refined.bam.bai
 
 if [[ "$skip_markduplicates" != "true" ]]
 then
-mark-section "uploading mark duplicates QC"
-mv output.metrics ~/out/outputmetrics/QC/"$sorted_bam_prefix".output.metrics
+  mark-section "uploading mark duplicates QC"
+  mv output.metrics ~/out/outputmetrics/QC/"$sorted_bam_prefix".output.metrics
 fi
 
 
