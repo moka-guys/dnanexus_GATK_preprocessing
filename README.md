@@ -1,4 +1,4 @@
-# GATK3 pre-processing v 1.0
+# GATK3 pre-processing v 1.1
 **Please read this important information before running the app.**
 
 ## What are typical use cases for this app?
@@ -14,6 +14,9 @@ The steps applied in the app are:
 3. GATK base recalibration (using the known sites mentioned above and from dbSNP 137).
 
 The reference sequence is obtained by reading the BAM header and is downloaded from the relevant public project within the app.
+
+### Reproducability
+GATK indel realignment and BQSR are run with a single thread to make this app deterministic.
 
 ## What data are required for this app to run?
 1. BAM file 

@@ -1,9 +1,9 @@
 {
-  "name": "gatk3_preprocessing_v1.0",
-  "title": "GATK3 Preprocessing v1.0",
-  "summary": "v1.0 .",
+  "name": "gatk3_preprocessing_v1.1",
+  "title": "GATK3 Preprocessing v1.1",
+  "summary": "v1.1",
   "properties": {
-    "github release": "v1.0"
+    "github release": "v1.1"
   },
   "dxapi": "1.0.0",
   "inputSpec": [
@@ -37,6 +37,22 @@
       "class": "string",
       "optional": true,
       "group": "Advanced"
+    },
+    {
+      "name": "skip_indelrealignment",
+      "label": "Skip the indel realignment step?",
+      "help": "If selected, the indel realignment step will be skipped.",
+      "class": "boolean",
+      "default": false,
+      "group": "Common"
+    },
+    {
+      "name": "skip_BQSR",
+      "label": "Skip the base quality score recalibration (BQSR) step?",
+      "help": "If selected, the GATK BQSR step will be skipped..",
+      "class": "boolean",
+      "default": false,
+      "group": "Common"
     },
     {
       "name": "extra_ir_options",

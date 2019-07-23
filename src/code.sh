@@ -4,7 +4,11 @@
 # and to output each line as it is executed -- useful for debugging
 set -e -x -o pipefail
 
-
+# check not all steps are being skipped otherwise we get a 'refined.bam' that hasn't had any preprocessing.
+if [[ "$skip_markduplicates" == "true" ]] && [[ "$skip_BQSR" == "true" ]] && [[ "$skip_indelrealignment" == "true" ]]
+then
+  exit
+fi
 
 #
 # Fetch inputs
@@ -79,19 +83,20 @@ known1="1000G_phase1.indels.${genome}.vcf.gz"
 known2="Mills_and_1000G_gold_standard.indels.${genome}.vcf.gz"
 dbsnp="dbsnp_137.${genome}.vcf.gz"
 
+
 #
 # Run Picard MarkDuplicates
 #
-echo $skip_markduplicates
+# if mark duplicates is not skipped run the tool
 if [[ "$skip_markduplicates" != "true" ]]
 then
-  #mark-section "marking duplicates"
+  mark-section "marking duplicates"
   $java -jar picard.jar MarkDuplicates I="$sorted_bam_path" O=deduplicated.bam M=output.metrics CREATE_INDEX=true VALIDATION_STRINGENCY=SILENT $extra_md_options
   rm -f "$sorted_bam_path"
   realign_input="deduplicated.bam"
+# if mark duplicates is skipped we need to set the inputs for the next tool to the files input to mark duplicates. This also requires an indexed BAM so need to create this index.
 else
-  #mark-section "indexing input mappings"
-  echo "not marking duplicates"
+  mark-section "mark duplicates skipped"
   samtools index "$sorted_bam_path"
   realign_input="$sorted_bam_path"
 fi
@@ -99,28 +104,49 @@ fi
 #
 # Run GATK indel realignment
 #
-#mark-section "realigning indels"
-$java -jar GenomeAnalysisTK.jar -nt `nproc` -T RealignerTargetCreator -R genome.fa -I "$realign_input" -o realign.intervals -known $known1 -known $known2 $extra_rtc_options
-$java -jar GenomeAnalysisTK.jar -T IndelRealigner -R genome.fa -I "$realign_input" -targetIntervals realign.intervals -known $known1 -known $known2 -o realigned.bam $extra_ir_options
-rm -f "$realign_input"
+if [[ "$skip_indelrealignment" != "true" ]]
+then
+  mark-section "realigning indels"
+  $java -jar GenomeAnalysisTK.jar -nct 1 -T RealignerTargetCreator -R genome.fa -I "$realign_input" -o realign.intervals -known $known1 -known $known2 $extra_rtc_options
+  $java -jar GenomeAnalysisTK.jar -nct 1 -T IndelRealigner -R genome.fa -I "$realign_input" -targetIntervals realign.intervals -known $known1 -known $known2 -o realigned.bam $extra_ir_options
+  realigned_bam="realigned.bam"
+  samtools index "$realigned_bam"
+  rm -f "$realign_input"
+# if this step is skipped need to set the BQSR inputs to the inputs to indel realignment
+else
+  mark-section "not performing indel realignment"
+  realigned_bam="$realign_input"
+  # create path to index 
+  realigned_bai="${realign_input/bam/"bai"}"
+  fi
 
 #
 # Run GATK base recalibration
 #
-#mark-section "recalibrating base quality scores"
-$java -jar GenomeAnalysisTK.jar -nct `nproc` -T BaseRecalibrator -R genome.fa -I realigned.bam -o recal.grp -knownSites $dbsnp -knownSites $known1 -knownSites $known2 $extra_br_options
-$java -jar GenomeAnalysisTK.jar -nct `nproc` -T PrintReads -R genome.fa -I realigned.bam -BQSR recal.grp -o recal.bam $extra_pr_options
-rm -f realigned.bam
+if [[ "$skip_BQSR" != "true" ]]
+then
+  mark-section "recalibrating base quality scores"
+  $java -jar GenomeAnalysisTK.jar -nct 1 -T BaseRecalibrator -R genome.fa -I $realigned_bam -o recal.grp -knownSites $dbsnp -knownSites $known1 -knownSites $known2 $extra_br_options
+  $java -jar GenomeAnalysisTK.jar -nct 1 -T PrintReads -R genome.fa -I $realigned_bam -BQSR recal.grp -o recal.bam $extra_pr_options
+  rm -f realigned.bam
+  recal_bam="recal.bam"
+  recal_bai="recal.bai"
+# if this step is skipped need to set the files to upload as the inputs to BQSR
+else
+  mark-section "not performing BQSR"
+  recal_bam="$realigned_bam"
+  recal_bai="$realigned_bai"
+fi
 
-
-
-#mark-section "uploading results"
+mark-section "uploading results"
 mkdir -p ~/out/bam/output/ ~/out/bai/output/ ~/out/outputmetrics/QC/
-mv recal.bam ~/out/bam/output/"$sorted_bam_prefix".refined.bam
-mv recal.bai ~/out/bai/output/"$sorted_bam_prefix".refined.bam.bai
+mv $recal_bam ~/out/bam/output/"$sorted_bam_prefix".refined.bam
+mv $recal_bai ~/out/bai/output/"$sorted_bam_prefix".refined.bam.bai
+
 if [[ "$skip_markduplicates" != "true" ]]
 then
-mv output.metrics ~/out/outputmetrics/QC/"$sorted_bam_prefix".output.metrics
+  mark-section "uploading mark duplicates QC"
+  mv output.metrics ~/out/outputmetrics/QC/"$sorted_bam_prefix".output.metrics
 fi
 
 
@@ -128,4 +154,4 @@ fi
 # Upload results
 #
 dx-upload-all-outputs --parallel
-#mark-success
+mark-success
